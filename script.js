@@ -1,10 +1,15 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.accept = '.gpx';
-    document.body.appendChild(fileInput);
+    // Mapbox-Karte initialisieren
+    mapboxgl.accessToken = 'DEIN_MAPBOX_KEY'; // Ersetze DEIN_MAPBOX_KEY mit deinem API-Key
+    const map = new mapboxgl.Map({
+        container: 'map',
+        style: 'mapbox://styles/mapbox/streets-v11',
+        center: [10.0, 51.0], // Mittelpunkt Deutschland
+        zoom: 6
+    });
 
-    fileInput.addEventListener('change', (e) => {
+    // GPX-Datei hochladen und verarbeiten
+    document.getElementById('gpx-file').addEventListener('change', (e) => {
         const file = e.target.files[0];
         const reader = new FileReader();
         reader.onload = (event) => {
@@ -15,6 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.readAsText(file);
     });
 
+    // GPX-Datei parsen und Route anzeigen
     function parseGPX(gpxData) {
         const gpx = new GPXParser(gpxData);
         gpx.parse();
