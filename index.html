@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Meine Reise-App</title>
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.6.1/mapbox-gl.js"></script>
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.6.1/mapbox-gl.css" rel="stylesheet">
+    <style>
+        #map { width: 100%; height: 500px; }
+    </style>
+</head>
+<body>
+    <h1>Teste meine Reise-App! 🗺️</h1>
+    <div id="map"></div>
+
+    <script>
+        // Ersetze DEIN_MAPBOX_KEY mit deinem API-Key
+        mapboxgl.accessToken = 'pk.eyJ1Ijoiam9uYXRoYW50aHJvbSIsImEiOiJjbTdiM3Y2aXUwOHMyMmtzZ2txZHdrZWN1In0.boR_RvXQ_Zfk_CpXb2kUFQ';
+        const map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/mapbox/streets-v11',
+            center: [10.0, 51.0], // Mittelpunkt Deutschland
+            zoom: 6
+        });
+
+        // Füge einen Marker hinzu (Beispiel)
+        new mapboxgl.Marker().setLngLat([10.0, 51.0]).addTo(map);
+    </script>
+</body>
+</html>
