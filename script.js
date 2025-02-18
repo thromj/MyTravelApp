@@ -1,4 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('GPX-Datei geladen:', gpxData); // Zeigt den GPX-Inhalt an
+    console.log('Koordinaten:', coordinates);   // Zeigt die extrahierten Koordinaten an
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
     fileInput.accept = '.gpx';
