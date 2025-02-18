@@ -1,6 +1,4 @@
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('GPX-Datei geladen:', gpxData); // Zeigt den GPX-Inhalt an
-    console.log('Koordinaten:', coordinates);   // Zeigt die extrahierten Koordinaten an
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
     fileInput.accept = '.gpx';
@@ -11,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const reader = new FileReader();
         reader.onload = (event) => {
             const gpxData = event.target.result;
+            console.log('GPX-Datei geladen:', gpxData); // Debugging
             parseGPX(gpxData);
         };
         reader.readAsText(file);
@@ -22,13 +21,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Extrahiere Koordinaten aus der GPX-Datei
         const coordinates = gpx.tracks[0].points.map(point => [point.lon, point.lat]);
+        console.log('Koordinaten:', coordinates); // Debugging
 
-        // Zeichne die Route auf der Karte
-        if (map.getSource('route')) {
+        // Entferne alte Route, falls vorhanden
+        if (map.getLayer('route')) {
             map.removeLayer('route');
             map.removeSource('route');
         }
 
+        // Füge die Route zur Karte hinzu
         map.addSource('route', {
             type: 'geojson',
             data: {
