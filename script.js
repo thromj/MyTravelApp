@@ -2,7 +2,7 @@
 mapboxgl.accessToken = MAPBOX_ACCESS_TOKEN;
 
 // Build-Nummer für die Anzeige oben rechts
-let buildNumber = [1, 0, 0, 2];
+let buildNumber = [1, 0, 0, 3];
 updateBuildNumber();
 
 // Initialisierung der Karte
@@ -53,10 +53,24 @@ map.on('load', () => {
         type: 'circle',
         source: 'route',
         paint: {
-            'circle-radius': 10,
+            'circle-radius': 15, // Größer für Touch-Bedienung
             'circle-color': '#ff0000',
             'circle-stroke-width': 2,
             'circle-stroke-color': '#ffffff'
+        }
+    });
+
+    // "Plus"-Symbole an den Enden des Tracks darstellen
+    map.addLayer({
+        id: 'add-endpoints',
+        type: 'symbol',
+        source: 'route',
+        layout: {
+            'icon-image': 'plus-15', // Mapbox-Symbol für "Plus"
+            'icon-size': 1.5,
+            'icon-offset': [0, -15],
+            'icon-allow-overlap': true,
+            'visibility': 'visible'
         }
     });
 });
@@ -85,16 +99,22 @@ document.getElementById('gpx-upload').addEventListener('change', function (e) {
     reader.readAsText(file);
 });
 
-// Mausklick auf Karte zum Hinzufügen eines neuen Wegpunkts
+// Mausklick auf Karte zum Hinzufügen eines neuen Wegpunkts oder Bearbeiten eines bestehenden Punktes
 map.on('click', (e) => {
-    const features = map.queryRenderedFeatures(e.point, { layers: ['waypoints'] });
+    const features = map.queryRenderedFeatures(e.point, { layers: ['waypoints', 'route-line'] });
 
-    if (features.length) {
-        // Wenn ein Wegpunkt angeklickt wird, Menü anzeigen
-        const waypointIndex = features[0].properties.index;
-        showWaypointMenu(e.point, waypointIndex);
+    if (features.length > 0) {
+        if (features[0].layer.id === "waypoints") {
+            // Wenn ein Wegpunkt angeklickt wird, Menü anzeigen
+            const waypointIndex = features[0].properties.index;
+            showWaypointMenu(e.point, waypointIndex);
+        } else if (features[0].layer.id === "route-line") {
+            // Wenn auf die Linie geklickt wird, neuen Punkt zwischen zwei bestehenden Punkten hinzufügen
+            const coords = [e.lngLat.lng, e.lngLat.lat];
+            addWaypointBetween(coords);
+        }
     } else {
-        // Wenn kein Wegpunkt angeklickt wird, neuen hinzufügen
+        // Wenn kein Feature angeklickt wird, neuen Punkt hinzufügen
         hideWaypointMenu();
         const coords = [e.lngLat.lng, e.lngLat.lat];
         waypoints.push(coords);
@@ -118,7 +138,7 @@ map.on('touchstart', 'waypoints', onWaypointInteractionStart);
 function onWaypointInteractionStart(e) {
     if (e.features.length > 0) {
         e.preventDefault();
-        
+
         // Navigationsmodus deaktivieren während des Verschiebens
         map.dragPan.disable();
 
@@ -127,7 +147,7 @@ function onWaypointInteractionStart(e) {
         function onMove(e) {
             const coords = e.lngLat;
             waypoints[waypointIndex] = [coords.lng, coords.lat];
-            updateRoute();
+            updateRoute(false); // Kein automatisches Zoomen während des Verschiebens
         }
 
         function onUp() {
@@ -170,58 +190,41 @@ deleteWaypointButton.addEventListener('click', () => {
     }
 });
 
+// Neuen Wegpunkt zwischen zwei bestehenden Punkten hinzufügen
+function addWaypointBetween(coords) {
+    let minDistance = Infinity;
+    let insertIndex = -1;
+
+    for (let i = 0; i < waypoints.length - 1; i++) {
+        const segmentStart = waypoints[i];
+        const segmentEnd = waypoints[i + 1];
+
+        const distanceToSegment =
+            turf.pointToLineDistance(turf.point(coords), turf.lineString([segmentStart, segmentEnd]), { units: "meters" });
+
+        if (distanceToSegment < minDistance) {
+            minDistance = distanceToSegment;
+            insertIndex = i + 1;
+        }
+    }
+
+    if (insertIndex !== -1) {
+        waypoints.splice(insertIndex, 0, coords);
+        updateRoute();
+    }
+}
+
 // Route aktualisieren und GeoJSON-Daten neu laden
-function updateRoute() {
+function updateRoute(zoomToFitBounds = true) {
     routeSource.data.features = [
         // Linie für die Route hinzufügen
         {
             type: 'Feature',
             geometry: {
                 type: 'LineString',
-                coordinates: waypoints
+                coordinates: waypoints,
             },
             properties: {}
         },
         
-        // Punkte für die Wegpunkte hinzufügen
-        ...waypoints.map((coords, index) => ({
-            type: 'Feature',
-            geometry: {
-                type: 'Point',
-                coordinates: coords
-            },
-            properties: { index }
-        }))
-    ];
-
-    if (map.getSource('route')) {
-        map.getSource('route').setData(routeSource.data);
-    }
-
-    if (waypoints.length > 1) {
-        const bounds = waypoints.reduce((bounds, coord) => bounds.extend(coord), new mapboxgl.LngLatBounds(waypoints[0], waypoints[0]));
-        map.fitBounds(bounds, { padding: 50 });
-    }
-}
-
-// Build-Nummer aktualisieren und anzeigen
-function updateBuildNumber() {
-    buildNumber[3]++;
-    
-    if (buildNumber[3] > 9) {
-        buildNumber[3] = 0;
-        buildNumber[2]++;
-        
-        if (buildNumber[2] > 9) {
-            buildNumber[2] = 0;
-            buildNumber[1]++;
-            
-            if (buildNumber[1] > 9) {
-                buildNumber[1] = 0;
-                buildNumber[0]++;
-            }
-        }
-    }
-
-    document.getElementById('build-number').innerText = `V ${buildNumber.join('.')}`;
-}
+         ...waypoints.map((coords,index)=>({type:"Point"}))
