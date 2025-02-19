@@ -2,7 +2,7 @@
 mapboxgl.accessToken = MAPBOX_ACCESS_TOKEN;
 
 // Build-Nummer für die Anzeige oben rechts
-let buildNumber = [1, 0, 0, 3];
+let buildNumber = [1, 0, 0, 2];
 updateBuildNumber();
 
 // Initialisierung der Karte
