@@ -11,12 +11,16 @@
         #map { position: absolute; top: 0; bottom: 0; width: 100%; }
         #gpx-upload { position: absolute; top: 10px; left: 10px; z-index: 1; }
         #build-number { position: absolute; top: 10px; right: 10px; z-index: 1; background-color: rgba(255, 255, 255, 0.8); padding: 5px; border-radius: 5px; font-family: Arial, sans-serif; font-size: 12px; }
+        #waypoint-menu { display: none; position: absolute; background-color: white; padding: 5px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
     </style>
 </head>
 <body>
     <div id="map"></div>
     <input type="file" id="gpx-upload" accept=".gpx" />
-    <div id="build-number">V 1.0.0.0</div>
+    <div id="build-number">V 1.0.0.1</div>
+    <div id="waypoint-menu">
+        <button id="delete-waypoint">Löschen</button>
+    </div>
     <script src="script.js"></script>
 </body>
 </html>
