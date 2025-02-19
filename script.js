@@ -1,8 +1,11 @@
-mapboxgl.accessToken = 'pk.eyJ1Ijoiam9uYXRoYW50aHJvbSIsImEiOiJjbTdiM3Y2aXUwOHMyMmtzZ2txZHdrZWN1In0.boR_RvXQ_Zfk_CpXb2kUFQ';
+// Mapbox-Zugriffstoken wird aus config.js geladen
+mapboxgl.accessToken = MAPBOX_ACCESS_TOKEN;
 
-let buildNumber = [1, 0, 0, 1];
+// Build-Nummer für die Anzeige oben rechts
+let buildNumber = [1, 0, 0, 3];
 updateBuildNumber();
 
+// Initialisierung der Karte
 const map = new mapboxgl.Map({
     container: 'map',
     style: 'mapbox://styles/mapbox/streets-v11',
@@ -10,6 +13,7 @@ const map = new mapboxgl.Map({
     zoom: 6
 });
 
+// Variablen für Waypoints und GeoJSON-Quelle
 let waypoints = [];
 let routeSource = {
     type: 'geojson',
@@ -19,13 +23,16 @@ let routeSource = {
     }
 };
 
+// Variablen für Wegpunkt-Auswahl und Menü
 let selectedWaypointIndex = null;
 const waypointMenu = document.getElementById('waypoint-menu');
 const deleteWaypointButton = document.getElementById('delete-waypoint');
 
+// Quelle und Layer hinzufügen, wenn die Karte geladen ist
 map.on('load', () => {
     map.addSource('route', routeSource);
 
+    // Route als Linie darstellen
     map.addLayer({
         id: 'route-line',
         type: 'line',
@@ -40,6 +47,7 @@ map.on('load', () => {
         }
     });
 
+    // Wegpunkte als Kreise darstellen
     map.addLayer({
         id: 'waypoints',
         type: 'circle',
@@ -53,11 +61,12 @@ map.on('load', () => {
     });
 });
 
-document.getElementById('gpx-upload').addEventListener('change', function(e) {
+// GPX-Datei hochladen und Wegpunkte hinzufügen
+document.getElementById('gpx-upload').addEventListener('change', function (e) {
     const file = e.target.files[0];
     const reader = new FileReader();
 
-    reader.onload = function(e) {
+    reader.onload = function (e) {
         const gpxData = e.target.result;
         const parser = new DOMParser();
         const gpx = parser.parseFromString(gpxData, 'text/xml');
@@ -76,13 +85,16 @@ document.getElementById('gpx-upload').addEventListener('change', function(e) {
     reader.readAsText(file);
 });
 
+// Mausklick auf Karte zum Hinzufügen eines neuen Wegpunkts
 map.on('click', (e) => {
     const features = map.queryRenderedFeatures(e.point, { layers: ['waypoints'] });
-    
+
     if (features.length) {
-        selectedWaypointIndex = features[0].properties.index;
-        showWaypointMenu(e.point);
+        // Wenn ein Wegpunkt angeklickt wird, Menü anzeigen
+        const waypointIndex = features[0].properties.index;
+        showWaypointMenu(e.point, waypointIndex);
     } else {
+        // Wenn kein Wegpunkt angeklickt wird, neuen hinzufügen
         hideWaypointMenu();
         const coords = [e.lngLat.lng, e.lngLat.lat];
         waypoints.push(coords);
@@ -90,25 +102,42 @@ map.on('click', (e) => {
     }
 });
 
+// Mauszeiger ändern, wenn er über einen Wegpunkt schwebt
+map.on('mouseenter', 'waypoints', () => {
+    map.getCanvas().style.cursor = 'pointer';
+});
+
+map.on('mouseleave', 'waypoints', () => {
+    map.getCanvas().style.cursor = '';
+});
+
+// Wegpunkt verschieben durch Drag-and-Drop (Maus oder Touch)
 map.on('mousedown', 'waypoints', onWaypointInteractionStart);
 map.on('touchstart', 'waypoints', onWaypointInteractionStart);
 
 function onWaypointInteractionStart(e) {
     if (e.features.length > 0) {
         e.preventDefault();
-        const waypointIndex = e.features[0].properties.index;
         
+        // Navigationsmodus deaktivieren während des Verschiebens
+        map.dragPan.disable();
+
+        const waypointIndex = e.features[0].properties.index;
+
         function onMove(e) {
-            const coords = e.lngLat || map.unproject(e.point);
+            const coords = e.lngLat;
             waypoints[waypointIndex] = [coords.lng, coords.lat];
             updateRoute();
         }
-        
-        function onUp(e) {
+
+        function onUp() {
             map.off('mousemove', onMove);
             map.off('touchmove', onMove);
             map.off('mouseup', onUp);
             map.off('touchend', onUp);
+
+            // Navigationsmodus wieder aktivieren
+            map.dragPan.enable();
         }
 
         map.on('mousemove', onMove);
@@ -118,6 +147,21 @@ function onWaypointInteractionStart(e) {
     }
 }
 
+// Menü für einen ausgewählten Wegpunkt anzeigen
+function showWaypointMenu(point, index) {
+    waypointMenu.style.display = 'block';
+    waypointMenu.style.left = `${point.x}px`;
+    waypointMenu.style.top = `${point.y}px`;
+    selectedWaypointIndex = index;
+}
+
+// Menü ausblenden
+function hideWaypointMenu() {
+    waypointMenu.style.display = 'none';
+    selectedWaypointIndex = null;
+}
+
+// Wegpunkt löschen
 deleteWaypointButton.addEventListener('click', () => {
     if (selectedWaypointIndex !== null) {
         waypoints.splice(selectedWaypointIndex, 1);
@@ -126,19 +170,10 @@ deleteWaypointButton.addEventListener('click', () => {
     }
 });
 
-function showWaypointMenu(point) {
-    waypointMenu.style.display = 'block';
-    waypointMenu.style.left = `${point.x}px`;
-    waypointMenu.style.top = `${point.y}px`;
-}
-
-function hideWaypointMenu() {
-    waypointMenu.style.display = 'none';
-    selectedWaypointIndex = null;
-}
-
+// Route aktualisieren und GeoJSON-Daten neu laden
 function updateRoute() {
     routeSource.data.features = [
+        // Linie für die Route hinzufügen
         {
             type: 'Feature',
             geometry: {
@@ -147,6 +182,8 @@ function updateRoute() {
             },
             properties: {}
         },
+        
+        // Punkte für die Wegpunkte hinzufügen
         ...waypoints.map((coords, index) => ({
             type: 'Feature',
             geometry: {
@@ -167,25 +204,24 @@ function updateRoute() {
     }
 }
 
+// Build-Nummer aktualisieren und anzeigen
 function updateBuildNumber() {
     buildNumber[3]++;
+    
     if (buildNumber[3] > 9) {
         buildNumber[3] = 0;
         buildNumber[2]++;
+        
         if (buildNumber[2] > 9) {
             buildNumber[2] = 0;
             buildNumber[1]++;
+            
             if (buildNumber[1] > 9) {
                 buildNumber[1] = 0;
                 buildNumber[0]++;
             }
         }
     }
+
     document.getElementById('build-number').innerText = `V ${buildNumber.join('.')}`;
 }
-
-map.on('click', (e) => {
-    if (e.originalEvent.target.id !== 'delete-waypoint') {
-        hideWaypointMenu();
-    }
-});
