@@ -2,7 +2,7 @@
 mapboxgl.accessToken = MAPBOX_ACCESS_TOKEN;
 
 // Build-Nummer für die Anzeige oben rechts
-let buildNumber = [1, 0, 0, 3];
+let buildNumber = [1, 0, 0, 4];
 updateBuildNumber();
 
 // Initialisierung der Karte
@@ -65,6 +65,7 @@ map.on('load', () => {
         id: 'add-endpoints',
         type: 'symbol',
         source: 'route',
+        filter: ['in', '$type', 'Point'],
         layout: {
             'icon-image': 'plus-15', // Mapbox-Symbol für "Plus"
             'icon-size': 1.5,
@@ -101,7 +102,7 @@ document.getElementById('gpx-upload').addEventListener('change', function (e) {
 
 // Mausklick auf Karte zum Hinzufügen eines neuen Wegpunkts oder Bearbeiten eines bestehenden Punktes
 map.on('click', (e) => {
-    const features = map.queryRenderedFeatures(e.point, { layers: ['waypoints', 'route-line'] });
+    const features = map.queryRenderedFeatures(e.point, { layers: ['waypoints', 'route-line', 'add-endpoints'] });
 
     if (features.length > 0) {
         if (features[0].layer.id === "waypoints") {
@@ -112,6 +113,16 @@ map.on('click', (e) => {
             // Wenn auf die Linie geklickt wird, neuen Punkt zwischen zwei bestehenden Punkten hinzufügen
             const coords = [e.lngLat.lng, e.lngLat.lat];
             addWaypointBetween(coords);
+        } else if (features[0].layer.id === "add-endpoints") {
+            // Wenn auf ein Plus-Symbol geklickt wird, neuen Punkt am Anfang oder Ende hinzufügen
+            const coords = [e.lngLat.lng, e.lngLat.lat];
+            const index = features[0].properties.index;
+            if (index === 0) {
+                waypoints.unshift(coords);
+            } else {
+                waypoints.push(coords);
+            }
+            updateRoute();
         }
     } else {
         // Wenn kein Feature angeklickt wird, neuen Punkt hinzufügen
@@ -199,8 +210,7 @@ function addWaypointBetween(coords) {
         const segmentStart = waypoints[i];
         const segmentEnd = waypoints[i + 1];
 
-        const distanceToSegment =
-            turf.pointToLineDistance(turf.point(coords), turf.lineString([segmentStart, segmentEnd]), { units: "meters" });
+        const distanceToSegment = distanceToLine(coords, segmentStart, segmentEnd);
 
         if (distanceToSegment < minDistance) {
             minDistance = distanceToSegment;
@@ -214,6 +224,43 @@ function addWaypointBetween(coords) {
     }
 }
 
+// Hilfsfunktion zur Berechnung des Abstands eines Punktes zu einer Linie
+function distanceToLine(point, lineStart, lineEnd) {
+    const x = point[0], y = point[1];
+    const x1 = lineStart[0], y1 = lineStart[1];
+    const x2 = lineEnd[0], y2 = lineEnd[1];
+
+    const A = x - x1;
+    const B = y - y1;
+    const C = x2 - x1;
+    const D = y2 - y1;
+
+    const dot = A * C + B * D;
+    const len_sq = C * C + D * D;
+    let param = -1;
+    if (len_sq != 0) //in case of 0 length line
+        param = dot / len_sq;
+
+    let xx, yy;
+
+    if (param < 0) {
+        xx = x1;
+        yy = y1;
+    }
+    else if (param > 1) {
+        xx = x2;
+        yy = y2;
+    }
+    else {
+        xx = x1 + param * C;
+        yy = y1 + param * D;
+    }
+
+    const dx = x - xx;
+    const dy = y - yy;
+    return Math.sqrt(dx * dx + dy * dy);
+}
+
 // Route aktualisieren und GeoJSON-Daten neu laden
 function updateRoute(zoomToFitBounds = true) {
     routeSource.data.features = [
@@ -222,9 +269,62 @@ function updateRoute(zoomToFitBounds = true) {
             type: 'Feature',
             geometry: {
                 type: 'LineString',
-                coordinates: waypoints,
+                coordinates: waypoints
             },
             properties: {}
         },
-        
-         ...waypoints.map((coords,index)=>({type:"Point"}))
+        // Punkte für die Wegpunkte hinzufügen
+        ...waypoints.map((coords, index) => ({
+            type: 'Feature',
+            geometry: {
+                type: 'Point',
+                coordinates: coords
+            },
+            properties: { index }
+        })),
+        // Plus-Symbole am Anfang und Ende hinzufügen
+        {
+            type: 'Feature',
+            geometry: {
+                type: 'Point',
+                coordinates: waypoints[0] || []
+            },
+            properties: { index: 0 }
+        },
+        {
+            type: 'Feature',
+            geometry: {
+                type: 'Point',
+                coordinates: waypoints[waypoints.length - 1] || []
+            },
+            properties: { index: waypoints.length - 1 }
+        }
+    ];
+
+    if (map.getSource('route')) {
+        map.getSource('route').setData(routeSource.data);
+    }
+
+    if (zoomToFitBounds && waypoints.length > 1) {
+        const bounds = waypoints.reduce((bounds, coord) => bounds.extend(coord), new mapboxgl.LngLatBounds(waypoints[0], waypoints[0]));
+        map.fitBounds(bounds, { padding: 50 });
+    }
+}
+
+// Build-Nummer aktualisieren und anzeigen
+function updateBuildNumber() {
+    buildNumber[3]++;
+    if (buildNumber[3] > 9) {
+        buildNumber[3] = 0;
+        buildNumber[2]++;
+        if (buildNumber[2] > 9) {
+            buildNumber[2] = 0;
+            buildNumber[1]++;
+            if (buildNumber[1] > 9) {
+                buildNumber[1] = 0;
+                buildNumber[0]++;
+            }
+        }
+    }
+    document.getElementById('build-number').innerText = `V ${buildNumber.join('.')}`;
+}
