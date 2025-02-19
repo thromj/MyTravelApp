@@ -233,6 +233,107 @@ function updateRoute(zoomToFitBounds = true) {
     }
 }
 
-// Hilfsfunktionen und andere Funktionen bleiben unverändert
-// ...
+// Hilfsfunktion zur Berechnung des Abstands eines Punktes zu einer Linie
+function distanceToLine(point, lineStart, lineEnd) {
+    const x = point[0], y = point[1];
+    const x1 = lineStart[0], y1 = lineStart[1];
+    const x2 = lineEnd[0], y2 = lineEnd[1];
 
+    const A = x - x1;
+    const B = y - y1;
+    const C = x2 - x1;
+    const D = y2 - y1;
+
+    const dot = A * C + B * D;
+    const len_sq = C * C + D * D;
+    let param = -1;
+    if (len_sq != 0) //in case of 0 length line
+        param = dot / len_sq;
+
+    let xx, yy;
+
+    if (param < 0) {
+        xx = x1;
+        yy = y1;
+    }
+    else if (param > 1) {
+        xx = x2;
+        yy = y2;
+    }
+    else {
+        xx = x1 + param * C;
+        yy = y1 + param * D;
+    }
+
+    const dx = x - xx;
+    const dy = y - yy;
+    return Math.sqrt(dx * dx + dy * dy);
+}
+
+// Route aktualisieren und GeoJSON-Daten neu laden
+function updateRoute(zoomToFitBounds = true) {
+    routeSource.data.features = [
+        // Linie für die Route hinzufügen
+        {
+            type: 'Feature',
+            geometry: {
+                type: 'LineString',
+                coordinates: waypoints
+            },
+            properties: {}
+        },
+        // Punkte für die Wegpunkte hinzufügen
+        ...waypoints.map((coords, index) => ({
+            type: 'Feature',
+            geometry: {
+                type: 'Point',
+                coordinates: coords
+            },
+            properties: { index }
+        })),
+        // Plus-Symbole am Anfang und Ende hinzufügen
+        {
+            type: 'Feature',
+            geometry: {
+                type: 'Point',
+                coordinates: waypoints[0] || []
+            },
+            properties: { index: 0 }
+        },
+        {
+            type: 'Feature',
+            geometry: {
+                type: 'Point',
+                coordinates: waypoints[waypoints.length - 1] || []
+            },
+            properties: { index: waypoints.length - 1 }
+        }
+    ];
+
+    if (map.getSource('route')) {
+        map.getSource('route').setData(routeSource.data);
+    }
+
+    if (zoomToFitBounds && waypoints.length > 1) {
+        const bounds = waypoints.reduce((bounds, coord) => bounds.extend(coord), new mapboxgl.LngLatBounds(waypoints[0], waypoints[0]));
+        map.fitBounds(bounds, { padding: 50 });
+    }
+}
+
+// Build-Nummer aktualisieren und anzeigen
+function updateBuildNumber() {
+    buildNumber[3]++;
+    if (buildNumber[3] > 9) {
+        buildNumber[3] = 0;
+        buildNumber[2]++;
+        if (buildNumber[2] > 9) {
+            buildNumber[2] = 0;
+            buildNumber[1]++;
+            if (buildNumber[1] > 9) {
+                buildNumber[1] = 0;
+                buildNumber[0]++;
+            }
+        }
+    }
+    document.getElementById('build-number').innerText = `V ${buildNumber.join('.')}`;
+}
