@@ -1,6 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Mapbox API-Token
+    mapboxgl.accessToken = 'pk.eyJ1Ijoiam9uYXRoYW50aHJvbSIsImEiOiJjbTdiM3Y2aXUwOHMyMmtzZ2txZHdrZWN1In0.boR_RvXQ_Zfk_CpXb2kUFQ';
+
     // Mapbox-Karte initialisieren
-    mapboxgl.accessToken = 'pk.eyJ1Ijoiam9uYXRoYW50aHJvbSIsImEiOiJjbTdiM3Y2aXUwOHMyMmtzZ2txZHdrZWN1In0.boR_RvXQ_Zfk_CpXb2kUFQ'; // Ersetze DEIN_MAPBOX_KEY mit deinem API-Key
     const map = new mapboxgl.Map({
         container: 'map',
         style: 'mapbox://styles/mapbox/streets-v11',
